@@ -1,17 +1,14 @@
 import os
 import sys
 import random
-
 import pygame
+from pygame import *
+import time
 
-# Изображение не получится загрузить
-# без предварительной инициализации pygame
 pygame.init()
-pygame.display.set_caption('Герой двигается!')
+pygame.display.set_caption('Amogus Life')
 
-SIZE = WIDTH, HEIGHT = 1500, 500
-v = 60
-FPS = 60
+SIZE = WIDTH, HEIGHT = 1680, 1720
 screen = pygame.display.set_mode(SIZE)
 BLACK = pygame.Color('black')
 WHITE = pygame.Color('white')
@@ -23,11 +20,11 @@ colors = {
 horizontal_borders = pygame.sprite.Group()
 vertical_borders = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
+bullets = []
 
 
 def load_image(name: str, colorkey=None) -> pygame.Surface:
     fullname = os.path.join('data', name)
-    # если файл не существует, то выходим
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
         sys.exit()
@@ -40,17 +37,61 @@ def load_image(name: str, colorkey=None) -> pygame.Surface:
     else:
         image = image.convert_alpha()
     return image
-class AnimatedSprite(pygame.sprite.Sprite):
-    def __init__(self, sheet, columns, rows, x, y):
+
+
+def load_level(filename):
+    filename = "data/" + filename
+    with open(filename, 'r') as mapFile:
+        level_map = [line.strip() for line in mapFile]
+    max_width = max(map(len, level_map))
+    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+
+stop_list = []
+
+
+def generate_level(level):
+    new_player, x, y = None, None, None
+    for y in range(len(level)):
+        for x in range(len(level[y])):
+            if level[y][x] == '#':
+                Tile("wall", x, y)
+                stop_list.append(Tile("wall", x, y))
+            elif level[y][x] == '@':
+                new_player = AnimatedHeroSprite(load_image("among_us.png", -1), 4, 1, x * 60, y * 60, 100)
+            elif level[y][x] == "!":
+                Enemy("enemy.png", x, y, 50, 1)
+                stop_list.append(Enemy("enemy.png", x, y, 50, 1))
+    return new_player, x, y
+
+
+class Tile(pygame.sprite.Sprite):
+    def __init__(self, tile_type, pos_x, pos_y):
+        super().__init__(tiles_group, all_sprites)
+        self.image = tile_images[tile_type]
+        self.rect = self.image.get_rect().move(
+            46 * pos_x, 43 * pos_y)
+        self.mask = pygame.mask.from_surface(self.image)
+
+
+class AnimatedHeroSprite(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y, hp):
         super().__init__(all_sprites)
         self.frames = []
+        self.hp = hp
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
-        self.rect = self.rect.move(x, y)
+        self.frames2 = []
+        self.right_cut_sheet(load_image('among_us_revers.png', -1), 4, 1)
+        self.vector = 0
+        self.rect = self.image.get_rect()
+        self.mask = pygame.mask.from_surface(self.image)
+        self.rect.x = x
+        self.rect.y = y
 
     def cut_sheet(self, sheet, columns, rows):
-        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+        self.rect = pygame.Rect(100, 100, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
         for j in range(rows):
             for i in range(columns):
@@ -58,43 +99,66 @@ class AnimatedSprite(pygame.sprite.Sprite):
                 self.frames.append(sheet.subsurface(pygame.Rect(
                     frame_location, self.rect.size)))
 
-    def update(self):
-        if pygame.key.get_pressed()[pygame.K_1]:
-            self.cut_sheet(load_image("weapon_walk.png"), 2, 1)
-            if pygame.key.get_pressed()[pygame.K_DOWN] and self.rect.y < HEIGHT - 261:
-                self.cur_frame = (self.cur_frame + 2) % len(self.frames)
-                self.image = self.frames[self.cur_frame]
-                self.rect.y += 10
-            else:
-                self.image = load_image("chel2.png", -1)
-            if pygame.key.get_pressed()[pygame.K_UP] and self.rect.y > 0:
-                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-                self.image = self.frames[self.cur_frame]
-                self.rect.y += -10
-            if pygame.key.get_pressed()[pygame.K_LEFT] and self.rect.x > 0:
-                self.cur_frame = (self.cur_frame + 2) % len(self.frames)
-                self.image = self.frames[self.cur_frame]
-                self.rect.x += -10
-        else:
-            if pygame.key.get_pressed()[pygame.K_DOWN] and self.rect.y < HEIGHT - 261:
-                self.cur_frame = (self.cur_frame + 2) % len(self.frames)
-                self.image = self.frames[self.cur_frame]
-                self.rect.y += 10
-            else:
-                self.image = load_image("chel2.png", -1)
-            if pygame.key.get_pressed()[pygame.K_UP] and self.rect.y > 0:
-                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-                self.image = self.frames[self.cur_frame]
-                self.rect.y += -10
-            if pygame.key.get_pressed()[pygame.K_LEFT] and self.rect.x > 0:
-                self.cur_frame = (self.cur_frame + 2) % len(self.frames)
-                self.image = self.frames[self.cur_frame]
-                self.rect.x += -10
+    def right_cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(100, 100, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames2.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
 
-        if pygame.key.get_pressed()[pygame.K_RIGHT] and self.rect.x < WIDTH - 105:
-            self.cur_frame = (self.cur_frame + 2) % len(self.frames)
+    def update(self):
+        if pygame.key.get_pressed()[pygame.K_DOWN] and not (
+                pygame.key.get_pressed()[pygame.K_RIGHT] or pygame.key.get_pressed()[pygame.K_LEFT]):
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+            self.rect.y += 10
+            self.vector = 2
+        else:
+            if self.vector == 0 or self.vector == 2 or self.vector == -1:
+                self.image = load_image('stoi.png', -1)
+            else:
+                self.image = load_image('stoi_reverse.png', -1)
+            pass
+        if pygame.key.get_pressed()[pygame.K_UP] and not (
+                pygame.key.get_pressed()[pygame.K_RIGHT] or pygame.key.get_pressed()[pygame.K_LEFT]):
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+            self.rect.y += -10
+            self.vector = -1
+        else:
+            pass
+        if pygame.key.get_pressed()[pygame.K_RIGHT]:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
             self.rect.x += 10
+            self.vector = 0
+        if pygame.key.get_pressed()[pygame.K_LEFT]:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames2)
+            self.image = self.frames2[-self.cur_frame]
+            self.rect.x += -10
+            self.vector = 1
+        # # if pygame.key.get_pressed()[pygame.K_SPACE]:
+        # #     bullet = Bullet("bullet.png", self.rect.right - 50, self.rect.top, self.vector)
+        #     bullets.append(bullet)
+        for i in stop_list:
+
+            if pygame.sprite.collide_mask(self, i):
+                if self.vector == -1:
+                    self.rect.top = i.rect.bottom
+                if self.vector == 2:
+                    self.rect.bottom = i.rect.top
+                if self.vector == 1:
+                    self.rect.left = i.rect.right
+                if self.vector == 0:
+                    self.rect.right = i.rect.left
+                if isinstance(i, Enemy):
+                    self.hp -= 10
+                    print(self.hp)
+                    if self.hp < 60:
+                        AnimatedHeroSprite.kill(self)
+
 
 class Camera:
     def __init__(self):
@@ -110,32 +174,58 @@ class Camera:
         self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT // 2)
 
 
-class Border(pygame.sprite.Sprite):
-    # строго вертикальный или строго горизонтальный отрезок
-    def __init__(self, x1, y1, x2, y2):
-
+class Wall(pygame.sprite.Sprite):
+    def __init__(self, sheet, x, y):
         super().__init__(all_sprites)
-        if x1 == x2:  # вертикальная стенка
-            self.add(vertical_borders)
-            self.image = pygame.Surface([1, y2 - y1])
-            self.rect = pygame.Rect(x1, y1, 1, y2 - y1)
-        else:  # горизонтальная стенка
-            self.add(horizontal_borders)
-            self.image = pygame.Surface([x2 - x1, 1])
-            self.rect = pygame.Rect(x1, y1, x2 - x1, 1)
-
-
-class Mountain(pygame.sprite.Sprite):
-    image = load_image("img.png")
-
-    def __init__(self):
-        super().__init__(all_sprites)
-        self.image = Mountain.image
+        self.image = load_image(sheet, -1)
         self.rect = self.image.get_rect()
-        # вычисляем маску для эффективного сравнения
         self.mask = pygame.mask.from_surface(self.image)
-        # располагаем горы внизу
-        self.rect.bottom = HEIGHT
+
+
+# class Bullet(pygame.sprite.Sprite):
+#     def __init__(self, sheet, x, y, vector):
+#         super().__init__(all_sprites)
+#         self.image = load_image(sheet, -1)
+#         self.rect = self.image.get_rect()
+#         self.rect.move(x, y)
+#         self.rect.x = x
+#         self.rect.y = y
+#         self.vector = vector
+#
+#     def update(self):
+#         for j in stop_list:
+#             if not pygame.sprite.collide_mask(self, j):
+#                 if 0 <= self.rect.x <= WIDTH and 0 <= self.rect.y <= HEIGHT:
+#                     if self.vector == 1:
+#                         self.rect.x -= 1
+#                     if self.vector == 0:
+#                         self.rect.x += 1
+#                     if self.vector == -1:
+#                         self.rect.y -= 1
+#                     if self.vector == 2:
+#                         self.rect.y += 1
+#                 else:
+#                     Bullet.kill(self)
+#             else:
+#                 if isinstance(j, Enemy):
+#                     j.hp -= 25
+#                     Enemy.kill(j)
+#                     print("dead")
+#                 Bullet.kill(self)
+
+
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, model, x, y, hp, vector):
+        super().__init__(all_sprites)
+        self.image = load_image(model, -1)
+        self.hp = hp
+        self.rect = self.image.get_rect().move(
+            60 * x, 60 * y)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.vector = vector
+
+    def update(self):
+        print(1)
 
 
 if __name__ == '__main__':
@@ -144,27 +234,24 @@ if __name__ == '__main__':
 
     sprite = pygame.sprite.Sprite()
     clock = pygame.time.Clock()
-    balls_sprites = pygame.sprite.Group()
-    running = True
-    Border(5, 5, WIDTH - 5, 5)
-    Border(5, HEIGHT - 5, WIDTH - 5, HEIGHT - 5)
-    Border(5, 5, 5, HEIGHT - 5)
-    Border(WIDTH - 5, 5, WIDTH - 5, HEIGHT - 5)
-    camera = Camera()
-    mountain = Mountain()
-    player = AnimatedSprite(load_image("walk2.png"), 3, 1, 50, 50)
-    while running:
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+    running = True
+    camera = Camera()
+    tiles_group = pygame.sprite.Group()
+    tile_images = {
+        'wall': load_image('block.png', -1), 'floor': load_image('floor1.png')
+    }
+    player, level_x, level_y = generate_level(load_level('map.txt'))
+    while running:
         camera.update(player)
         for sprite in all_sprites:
             camera.apply(sprite)
-        tick = clock.tick(5)
-        screen.fill(BLACK)
-        all_sprites.draw(screen)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        tick = clock.tick(12)
         all_sprites.update()
-
+        screen.fill(WHITE)
+        all_sprites.draw(screen)
         pygame.display.flip()
     pygame.quit()
