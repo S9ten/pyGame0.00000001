@@ -8,7 +8,7 @@ import time
 pygame.init()
 pygame.display.set_caption('Amogus Life')
 
-SIZE = WIDTH, HEIGHT = 1680, 1720
+SIZE = WIDTH, HEIGHT = 700, 700
 screen = pygame.display.set_mode(SIZE)
 BLACK = pygame.Color('black')
 WHITE = pygame.Color('white')
@@ -47,7 +47,7 @@ def load_level(filename):
 
 
 stop_list = []
-
+hero_list = []
 
 def generate_level(level):
     new_player, x, y = None, None, None
@@ -58,6 +58,7 @@ def generate_level(level):
                 stop_list.append(Tile("wall", x, y))
             elif level[y][x] == '@':
                 new_player = AnimatedHeroSprite(load_image("among_us.png", -1), 4, 1, x * 60, y * 60, 100)
+                hero_list.append(new_player)
             elif level[y][x] == "!":
                 Enemy("enemy.png", x, y, 50, 1)
                 stop_list.append(Enemy("enemy.png", x, y, 50, 1))
@@ -88,6 +89,8 @@ class AnimatedHeroSprite(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
         self.rect.x = x
         self.rect.y = y
+        self.c = 0
+        self.wait_anim = 7
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(100, 100, sheet.get_width() // columns,
@@ -108,38 +111,43 @@ class AnimatedHeroSprite(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
+        self.c += 1
         if pygame.key.get_pressed()[pygame.K_DOWN] and not (
                 pygame.key.get_pressed()[pygame.K_RIGHT] or pygame.key.get_pressed()[pygame.K_LEFT]):
-            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-            self.image = self.frames[self.cur_frame]
+            if not self.c % self.wait_anim:
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
             self.rect.y += 10
             self.vector = 2
+
+        elif pygame.key.get_pressed()[pygame.K_UP] and not (
+                pygame.key.get_pressed()[pygame.K_RIGHT] or pygame.key.get_pressed()[pygame.K_LEFT]):
+            if not self.c % self.wait_anim:
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
+            self.rect.y += -10
+            self.vector = -1
+
+        elif pygame.key.get_pressed()[pygame.K_RIGHT]:
+            if not self.c % self.wait_anim:
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+                self.image = self.frames[self.cur_frame]
+            self.rect.x += 10
+            self.vector = 0
+        elif pygame.key.get_pressed()[pygame.K_LEFT]:
+            if not self.c % self.wait_anim:
+                self.cur_frame = (self.cur_frame + 1) % len(self.frames2)
+                self.image = self.frames2[-self.cur_frame]
+            self.rect.x += -10
+            self.vector = 1
         else:
             if self.vector == 0 or self.vector == 2 or self.vector == -1:
                 self.image = load_image('stoi.png', -1)
             else:
                 self.image = load_image('stoi_reverse.png', -1)
-            pass
-        if pygame.key.get_pressed()[pygame.K_UP] and not (
-                pygame.key.get_pressed()[pygame.K_RIGHT] or pygame.key.get_pressed()[pygame.K_LEFT]):
-            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-            self.image = self.frames[self.cur_frame]
-            self.rect.y += -10
-            self.vector = -1
-        else:
-            pass
-        if pygame.key.get_pressed()[pygame.K_RIGHT]:
-            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-            self.image = self.frames[self.cur_frame]
-            self.rect.x += 10
-            self.vector = 0
-        if pygame.key.get_pressed()[pygame.K_LEFT]:
-            self.cur_frame = (self.cur_frame + 1) % len(self.frames2)
-            self.image = self.frames2[-self.cur_frame]
-            self.rect.x += -10
-            self.vector = 1
         if pygame.key.get_pressed()[pygame.K_SPACE]:
             bullet = Bullet("bullet.png", self.rect.right - 50, self.rect.top, self.vector)
+            bulets.append(bullet)
         for i in stop_list:
 
             if pygame.sprite.collide_mask(self, i):
@@ -189,7 +197,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         self.vector = vector
-        bulets.append(self)
+
     def update(self):
         if -WIDTH <= self.rect.x <= WIDTH and -HEIGHT <= self.rect.y <= HEIGHT:
             if self.vector == 1:
@@ -202,7 +210,9 @@ class Bullet(pygame.sprite.Sprite):
                 self.rect.y += 10
         for j in stop_list:
             if pygame.sprite.collide_mask(self, j):
+                bulets.pop(bulets.index(self))
                 self.kill()
+
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -221,7 +231,6 @@ class Enemy(pygame.sprite.Sprite):
         for j in bulets:
             if pygame.sprite.collide_mask(self, j):
                 self.kill()
-
 
 if __name__ == '__main__':
 
@@ -247,7 +256,7 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        tick = clock.tick(12)
+        tick = clock.tick(30)
         all_sprites.update()
         screen.fill(WHITE)
         for i in all_sprites.sprites():
