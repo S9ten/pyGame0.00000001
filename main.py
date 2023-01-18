@@ -20,7 +20,6 @@ colors = {
 horizontal_borders = pygame.sprite.Group()
 vertical_borders = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
-bullets = []
 
 
 def load_image(name: str, colorkey=None) -> pygame.Surface:
@@ -139,9 +138,8 @@ class AnimatedHeroSprite(pygame.sprite.Sprite):
             self.image = self.frames2[-self.cur_frame]
             self.rect.x += -10
             self.vector = 1
-        # # if pygame.key.get_pressed()[pygame.K_SPACE]:
-        # #     bullet = Bullet("bullet.png", self.rect.right - 50, self.rect.top, self.vector)
-        #     bullets.append(bullet)
+        if pygame.key.get_pressed()[pygame.K_SPACE]:
+            bullet = Bullet("bullet.png", self.rect.right - 50, self.rect.top, self.vector)
         for i in stop_list:
 
             if pygame.sprite.collide_mask(self, i):
@@ -181,37 +179,30 @@ class Wall(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
 
-
-# class Bullet(pygame.sprite.Sprite):
-#     def __init__(self, sheet, x, y, vector):
-#         super().__init__(all_sprites)
-#         self.image = load_image(sheet, -1)
-#         self.rect = self.image.get_rect()
-#         self.rect.move(x, y)
-#         self.rect.x = x
-#         self.rect.y = y
-#         self.vector = vector
-#
-#     def update(self):
-#         for j in stop_list:
-#             if not pygame.sprite.collide_mask(self, j):
-#                 if 0 <= self.rect.x <= WIDTH and 0 <= self.rect.y <= HEIGHT:
-#                     if self.vector == 1:
-#                         self.rect.x -= 1
-#                     if self.vector == 0:
-#                         self.rect.x += 1
-#                     if self.vector == -1:
-#                         self.rect.y -= 1
-#                     if self.vector == 2:
-#                         self.rect.y += 1
-#                 else:
-#                     Bullet.kill(self)
-#             else:
-#                 if isinstance(j, Enemy):
-#                     j.hp -= 25
-#                     Enemy.kill(j)
-#                     print("dead")
-#                 Bullet.kill(self)
+bulets = []
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, sheet, x, y, vector):
+        super().__init__(all_sprites)
+        self.image = load_image(sheet, -1)
+        self.rect = self.image.get_rect()
+        self.rect.move(x, y)
+        self.rect.x = x
+        self.rect.y = y
+        self.vector = vector
+        bulets.append(self)
+    def update(self):
+        if -WIDTH <= self.rect.x <= WIDTH and -HEIGHT <= self.rect.y <= HEIGHT:
+            if self.vector == 1:
+                self.rect.x -= 10
+            if self.vector == 0:
+                self.rect.x += 10
+            if self.vector == -1:
+                self.rect.y -= 10
+            if self.vector == 2:
+                self.rect.y += 10
+        for j in stop_list:
+            if pygame.sprite.collide_mask(self, j):
+                self.kill()
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -221,16 +212,20 @@ class Enemy(pygame.sprite.Sprite):
         self.hp = hp
         self.rect = self.image.get_rect().move(
             60 * x, 60 * y)
+        self.image = Surface((self.rect.width, self.rect.height))
+        self.image.fill(BLACK)
         self.mask = pygame.mask.from_surface(self.image)
         self.vector = vector
 
     def update(self):
-        print(1)
+        for j in bulets:
+            if pygame.sprite.collide_mask(self, j):
+                self.kill()
 
 
 if __name__ == '__main__':
 
-    screen.fill(BLACK)
+    screen.fill(WHITE)
 
     sprite = pygame.sprite.Sprite()
     clock = pygame.time.Clock()
@@ -242,9 +237,12 @@ if __name__ == '__main__':
         'wall': load_image('block.png', -1), 'floor': load_image('floor1.png')
     }
     player, level_x, level_y = generate_level(load_level('map.txt'))
+    c = 0
     while running:
+        c += 1
+        screen.fill(WHITE)
         camera.update(player)
-        for sprite in all_sprites:
+        for sprite in all_sprites.sprites():
             camera.apply(sprite)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -252,6 +250,7 @@ if __name__ == '__main__':
         tick = clock.tick(12)
         all_sprites.update()
         screen.fill(WHITE)
-        all_sprites.draw(screen)
+        for i in all_sprites.sprites():
+            screen.blit(i.image, i.rect)
         pygame.display.flip()
     pygame.quit()
