@@ -24,7 +24,7 @@ bulets = []
 enem_bulets = []
 ABOUT = ['AMOGUS-LIFE V.1.0',
          'Developed by Korotishka', ]
-HELP = ['           MOVING:                        FIRE:',
+HELP = ['           MOVING:                        FIRE/retry:',
         '                   [UP]                         [SPACE]',
         '   [LEFT][DOWN][RIGHT]',
         'PAUSE: [ESC]']
