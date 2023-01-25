@@ -514,7 +514,7 @@ def start_the_game2():
     bg = pygame.image.load("data/bg.png")
     running = True
     while running:
-        if kills == 42:
+        if kills == 6:
             n_menu()
         c += 1
         screen.blit(bg, (0, 0))
