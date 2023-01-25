@@ -17,8 +17,6 @@ colors = {
     0: BLACK,
     1: WHITE
 }
-horizontal_borders = pygame.sprite.Group()
-vertical_borders = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 points = 0
 kills = 0
@@ -37,25 +35,25 @@ def n_name(value):
 
 
 def death_screen():
+    global levle_numver
     bg = Surface(SIZE)
     bg.fill(BLACK)
     screen.blit(bg, (0, 0))
     font = pygame.font.Font(None, 30)
-    string_rendered = font.render('Press <SPACE> to continue', True, pygame.Color('white'))
     text = font.render(f"ТЫ УМЕР."
                        f" POINTS:{points} KILLS:{kills}", True, (255, 0, 0))
     text_x = WIDTH // 2 - text.get_width() // 2
     text_y = HEIGHT // 2 - text.get_height() // 2
     screen.blit(text, (text_x, text_y))
-    intro_rect = string_rendered.get_rect()
-    intro_rect.x = (WIDTH - intro_rect[2]) / 2
-    intro_rect.top = HEIGHT * 3 / 4 - intro_rect[3] / 2
-    screen.blit(string_rendered, intro_rect)
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == KEYDOWN and event.key == K_SPACE:
+                start_the_game()
+                if levle_numver == 2:
+                    start_the_game2()
         clock.tick(20)
         pygame.display.flip()
     pygame.quit()
@@ -95,7 +93,8 @@ def n_menu():
     help_menu.add.vertical_margin(30)
     help_menu.add.button('Return to menu', pygame_menu.events.BACK)
     about_menu.add.button('Return to menu', pygame_menu.events.BACK)
-    menu.add.button('Play', start_the_game)
+    menu.add.button('Level 1', start_the_game)
+    menu.add.button('Levle 2', start_the_game2)
     menu.add.button('About', about_menu)
     menu.add.button('Help', help_menu)
     menu.mainloop(screen)
@@ -339,11 +338,10 @@ class Enemy(pygame.sprite.Sprite):
             stop_list.remove(self)
             global points
             points += 10
-            death_screen()
         if self not in stop_list:
             self.kill()
 
-        if self.delay % 22 == 0:
+        if self.delay % 44 == 0:
             for i in range(len(enem_bulets)):
                 if i % 2 == 0:
                     if player.rect.y <= self.rect.y:
@@ -376,7 +374,7 @@ class EnemyBullet(pygame.sprite.Sprite):
             self.kill()
         if -WIDTH <= self.rect.x <= WIDTH and -HEIGHT <= self.rect.y <= HEIGHT:
             if self.vector == 1:
-                self.rect.x -= 5
+                self.rect.x -= 10
             if self.vector == 0:
                 self.rect.x += 5
             if self.vector == -1:
@@ -394,6 +392,7 @@ class EnemyBullet(pygame.sprite.Sprite):
             if pygame.sprite.collide_mask(self, _):
                 if isinstance(_, Tile):
                     self.kill()
+                    
 
 
 class Heal(pygame.sprite.Sprite):
@@ -406,35 +405,117 @@ class Heal(pygame.sprite.Sprite):
 
 
 def score():
+    global player
     font = pygame.font.Font(None, 50)
     text = font.render(f"KILLS:{kills} POINTS:{points} AMMO:{player.ammo}", True, (0, 0, 0))
     text_x = WIDTH // 2 - text.get_width() // 2
     text_y = 30 - text.get_height() // 2
     screen.blit(text, (text_x, text_y))
     if not player.alive():
-        death_screen()
+        with open('data/record.txt', encoding='utf8', mode='w') as f:
+            f.write(f"KILLS:{kills} POINTS:{points} AMMO:{player.ammo} DATE:{datetime.datetime.now()}")
+            death_screen()
 
 
-screen.fill(WHITE)
-sprite = pygame.sprite.Sprite()
-clock = pygame.time.Clock()
-
-camera = Camera()
-tiles_group = pygame.sprite.Group()
-tile_images = {
-    'wall': load_image('block.png', -1), 'floor': load_image('floor1.png'),
-    'door': load_image('hp.png', -1)}
-player, level_x, level_y = generate_level(load_level('map.txt'))
-c = 0
-start = True
-bg = Surface(SIZE)
-bg = pygame.image.load("data/bg.png")
-
-
+# screen.fill(WHITE)
+# sprite = pygame.sprite.Sprite()
+# clock = pygame.time.Clock()
+#
+# camera = Camera()
+# tiles_group = pygame.sprite.Group()
+# tile_images = {
+#     'wall': load_image('block.png', -1), 'floor': load_image('floor1.png'),
+#     'door': load_image('hp.png', -1)}
+# player, level_x, level_y = generate_level(load_level('map.txt'))
+# c = 0
+# start = True
+# bg = Surface(SIZE)
+# bg = pygame.image.load("data/bg.png")
 def start_the_game():
+    global start, player, level_x, level_y, sprite, tile_images, tiles_group, camera, clock, points, kills, bulets, enem_bulets, all_sprites, stop_list
+    levle_number = 1
+    all_sprites = pygame.sprite.Group()
+    points = 0
+    kills = 0
+    bulets = []
+    enem_bulets = []
+    stop_list = []
+    screen.fill(WHITE)
+    sprite = pygame.sprite.Sprite()
+    clock = pygame.time.Clock()
+    camera = Camera()
+    tiles_group = pygame.sprite.Group()
+    tile_images = {
+        'wall': load_image('block.png', -1), 'floor': load_image('floor1.png'),
+        'door': load_image('hp.png', -1)}
+    player, level_x, level_y = generate_level(load_level('map.txt'))
+    player.hp = 100
+    player.ammo = 30
+    c = 0
+    start = True
+    bg = Surface(SIZE)
+    bg = pygame.image.load("data/bg.png")
     running = True
-    global c, start
     while running:
+        c += 1
+        if kills == 3:
+            start_the_game2()
+        screen.blit(bg, (0, 0))
+        camera.update(player)
+        for sprite in all_sprites.sprites():
+            camera.apply(sprite)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                start = not start
+        if start:
+            tick = clock.tick(30)
+            all_sprites.update()
+            for i in all_sprites.sprites():
+                screen.blit(i.image, i.rect)
+            score()
+        else:
+            font = pygame.font.Font(None, 30)
+            string_rendered = font.render('PAUSE.PRESS ESCAPE TO CONTINUE', True, pygame.Color('black'))
+            intro_rect = string_rendered.get_rect()
+            intro_rect.x = (WIDTH - intro_rect[2]) / 2
+            intro_rect.top = HEIGHT * 3 / 4 - intro_rect[3] / 2
+            screen.blit(string_rendered, intro_rect)
+            for i in all_sprites.sprites():
+                screen.blit(i.image, i.rect)
+        pygame.display.flip()
+    pygame.quit()
+
+
+def start_the_game2():
+    global start, player, level_x, level_y, sprite, tile_images, tiles_group, camera, clock, points, kills, bulets, enem_bulets, all_sprites, stop_list, levle_number
+    levle_number = 2
+    all_sprites = pygame.sprite.Group()
+    points = 0
+    kills = 0
+    bulets = []
+    enem_bulets = []
+    stop_list = []
+    screen.fill(WHITE)
+    sprite = pygame.sprite.Sprite()
+    clock = pygame.time.Clock()
+    camera = Camera()
+    tiles_group = pygame.sprite.Group()
+    tile_images = {
+        'wall': load_image('block.png', -1), 'floor': load_image('floor1.png'),
+        'door': load_image('hp.png', -1)}
+    player, level_x, level_y = generate_level(load_level('map2.txt'))
+    player.hp = 100
+    player.ammo = 30
+    c = 0
+    start = True
+    bg = Surface(SIZE)
+    bg = pygame.image.load("data/bg.png")
+    running = True
+    while running:
+        if kills == 42:
+            n_menu()
         c += 1
         screen.blit(bg, (0, 0))
         camera.update(player)
@@ -446,7 +527,7 @@ def start_the_game():
             if event.type == KEYDOWN and event.key == K_ESCAPE:
                 start = not start
         if start:
-            tick = clock.tick(20)
+            tick = clock.tick(30)
             all_sprites.update()
             for i in all_sprites.sprites():
                 screen.blit(i.image, i.rect)
